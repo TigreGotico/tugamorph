@@ -1563,3 +1563,115 @@ class TestBroaderVocabulary(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestLemmatization(unittest.TestCase):
+    """Regular verb lemmatization — infinitive reconstruction from root + conjugation class."""
+
+    def setUp(self):
+        self.a = PortugueseMorphAnalyzer()
+
+    def test_1st_conj_imperfect(self):
+        self.assertEqual(self.a.lemmatize("cantavam"), "cantar")
+
+    def test_1st_conj_present(self):
+        self.assertEqual(self.a.lemmatize("cantou"), "cantar")
+
+    def test_2nd_conj_subjunctive(self):
+        self.assertEqual(self.a.lemmatize("corresse"), "correr")
+
+    def test_1st_conj_participle(self):
+        self.assertEqual(self.a.lemmatize("aprovado"), "aprovar")
+
+    def test_1st_conj_participle_fem(self):
+        self.assertEqual(self.a.lemmatize("anunciada"), "anunciar")
+
+    def test_irregular_whole_word(self):
+        self.assertEqual(self.a.lemmatize("disseram"), "dizer")
+
+    def test_irregular_stem_vir(self):
+        self.assertEqual(self.a.lemmatize("vem"), "vir")
+
+    def test_irregular_stem_por(self):
+        self.assertEqual(self.a.lemmatize("põe"), "pôr")
+
+    def test_module_lemmatize_word(self):
+        from tugamorph import lemmatize_word
+        self.assertEqual(lemmatize_word("cantavam"), "cantar")
+        self.assertEqual(lemmatize_word("disseram"), "dizer")
+
+
+class TestPastParticiple(unittest.TestCase):
+    """Past participle detection via pos_tag='VERB' hint."""
+
+    def setUp(self):
+        self.a = PortugueseMorphAnalyzer()
+
+    def _ppt(self, word):
+        r = self.a.analyze(word, pos_tag="VERB")
+        return bool(r.verbal and r.verbal.is_past_participle)
+
+    def test_masculine_singular(self):
+        self.assertTrue(self._ppt("aprovado"))
+
+    def test_feminine_singular(self):
+        self.assertTrue(self._ppt("anunciada"))
+
+    def test_2nd_conj_participle(self):
+        self.assertTrue(self._ppt("corrida"))
+
+    def test_gerund_not_ppt(self):
+        self.assertFalse(self._ppt("correndo"))
+
+    def test_module_is_past_participle(self):
+        from tugamorph import is_past_participle
+        self.assertTrue(is_past_participle("aprovado"))
+        self.assertFalse(is_past_participle("correndo"))
+
+
+class TestExpandedIrregulars(unittest.TestCase):
+    """Spot-checks for forms added to _irregular_whole_words."""
+
+    def setUp(self):
+        self.a = PortugueseMorphAnalyzer()
+
+    def _lemma(self, word):
+        r = self.a.analyze(word)
+        return r.lemma_guess
+
+    def test_vir_forms(self):
+        self.assertEqual(self._lemma("vem"), "vir")
+        self.assertEqual(self._lemma("veio"), "vir")
+
+    def test_por_forms(self):
+        self.assertEqual(self._lemma("põe"), "pôr")
+
+    def test_dizer_forms(self):
+        self.assertEqual(self._lemma("disseram"), "dizer")
+
+    def test_fazer_forms(self):
+        self.assertEqual(self._lemma("faço"), "fazer")
+
+    def test_estar_forms(self):
+        self.assertEqual(self._lemma("está"), "estar")
+
+    def test_ser_forms(self):
+        self.assertEqual(self._lemma("são"), "ser")
+
+
+class TestHeuristicFallback(unittest.TestCase):
+    """analyze_sentence falls back to _tag_heuristic without tugatagger."""
+
+    def setUp(self):
+        cfg = AnalysisConfig(use_pos_tagger=False)
+        self.a = PortugueseMorphAnalyzer(config=cfg)
+
+    def test_sentence_returns_list(self):
+        results = self.a.analyze_sentence("O gato dorme na cama.")
+        self.assertIsInstance(results, list)
+        self.assertGreater(len(results), 0)
+
+    def test_all_results_are_analyses(self):
+        results = self.a.analyze_sentence("Ela cantava muito bem.")
+        for r in results:
+            self.assertIsInstance(r, MorphologicalAnalysis)

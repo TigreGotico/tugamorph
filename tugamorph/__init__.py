@@ -156,6 +156,7 @@ class VerbalAnalysis:
     number: Optional[str] = None  # 'sg', 'pl'
     thematic_vowel: Optional[str] = None
     is_irregular: bool = False
+    is_past_participle: bool = False  # True when tense_mood == "participle"
     lemma_guess: Optional[str] = None
     allomorph: Optional[str] = None  # the irregular stem variant
 
@@ -200,6 +201,9 @@ class MorphologicalAnalysis:
     # Compound analysis
     is_compound: bool = False
     compound_parts: List[str] = field(default_factory=list)
+
+    # Top-level lemma guess (populated for verbs and derivational words)
+    lemma_guess: Optional[str] = None
 
     def segmentation_str(self) -> str:
         """Return a human-readable morpheme segmentation like: [des]-[faz]-[er]"""
@@ -675,8 +679,14 @@ VERBAL_ENDINGS: List[Tuple[str, str, int, str, int]] = [
     ('ando', 'gerund', 0, '', 1),
     ('endo', 'gerund', 0, '', 2),
     ('indo', 'gerund', 0, '', 3),
-    ('ado', 'participle', 0, '', 1),
-    ('ido', 'participle', 0, '', 0),
+    ('ados', 'participle', 0, 'mpl', 1),
+    ('adas', 'participle', 0, 'fpl', 1),
+    ('idos', 'participle', 0, 'mpl', 2),
+    ('idas', 'participle', 0, 'fpl', 2),
+    ('ado', 'participle', 0, 'msg', 1),
+    ('ada', 'participle', 0, 'fsg', 1),
+    ('ido', 'participle', 0, 'msg', 2),
+    ('ida', 'participle', 0, 'fsg', 2),
 
     # Infinitivo pessoal
     ('armos', 'inf_pessoal', 1, 'pl', 1),
@@ -824,6 +834,7 @@ class PortugueseMorphAnalyzer:
             'anim': {'an', 'a'},  # animal…
             'and': {'an', 'a'},  # andar…
             'ante': {'ante', 'an', 'a'},  # antes (the word itself)
+            'corr': {'cor', 'co'},  # correr, correndo, corresse, corrida… (cor/co are not prefixes here)
         }
         # Expand: for any word starting with the blocked stem, block those prefixes
         self._prefix_block_stems = _blocked
@@ -889,6 +900,86 @@ class PortugueseMorphAnalyzer:
             'vai': ('ir', 'pres_ind', 3, 'sg'),
             'vamos': ('ir', 'pres_ind', 1, 'pl'),
             'vão': ('ir', 'pres_ind', 3, 'pl'),
+            # vir — present, preterite (high-frequency gaps)
+            'vem': ('vir', 'pres_ind', 3, 'sg'),
+            'vêm': ('vir', 'pres_ind', 3, 'pl'),
+            'venho': ('vir', 'pres_ind', 1, 'sg'),
+            'vens': ('vir', 'pres_ind', 2, 'sg'),
+            'vimos': ('vir', 'pret_perf', 1, 'pl'),
+            'veio': ('vir', 'pret_perf', 3, 'sg'),
+            'vieste': ('vir', 'pret_perf', 2, 'sg'),
+            'vieram': ('vir', 'pret_perf', 3, 'pl'),
+            'viesse': ('vir', 'subj_imperf', 1, 'sg'),
+            'viéssemos': ('vir', 'subj_imperf', 1, 'pl'),
+            # pôr — present
+            'ponho': ('pôr', 'pres_ind', 1, 'sg'),
+            'pões': ('pôr', 'pres_ind', 2, 'sg'),
+            'põe': ('pôr', 'pres_ind', 3, 'sg'),
+            'pomos': ('pôr', 'pres_ind', 1, 'pl'),
+            'põem': ('pôr', 'pres_ind', 3, 'pl'),
+            'pôs': ('pôr', 'pret_perf', 3, 'sg'),
+            'puseste': ('pôr', 'pret_perf', 2, 'sg'),
+            'pusesse': ('pôr', 'subj_imperf', 1, 'sg'),
+            # querer — subjunctive/imperfect gaps
+            'quisesse': ('querer', 'subj_imperf', 1, 'sg'),
+            'quisera': ('querer', 'imperf_subj_fut', 1, 'sg'),
+            'quero': ('querer', 'pres_ind', 1, 'sg'),
+            'quer': ('querer', 'pres_ind', 3, 'sg'),
+            'queremos': ('querer', 'pres_ind', 1, 'pl'),
+            'querem': ('querer', 'pres_ind', 3, 'pl'),
+            # saber — subjunctive gaps
+            'soubesse': ('saber', 'subj_imperf', 1, 'sg'),
+            'sei': ('saber', 'pres_ind', 1, 'sg'),
+            # poder — subjunctive
+            'pudesse': ('poder', 'subj_imperf', 1, 'sg'),
+            'posso': ('poder', 'pres_ind', 1, 'sg'),
+            'pode': ('poder', 'pres_ind', 3, 'sg'),
+            'podem': ('poder', 'pres_ind', 3, 'pl'),
+            # caber — subjunctive
+            'coubesse': ('caber', 'subj_imperf', 1, 'sg'),
+            # haver — present
+            'hei': ('haver', 'pres_ind', 1, 'sg'),
+            'há': ('haver', 'pres_ind', 3, 'sg'),
+            # ter — more forms
+            'temos': ('ter', 'pres_ind', 1, 'pl'),
+            'têm': ('ter', 'pres_ind', 3, 'pl'),
+            'tem': ('ter', 'pres_ind', 3, 'sg'),
+            'tivesse': ('ter', 'subj_imperf', 1, 'sg'),
+            # estar — present
+            'estou': ('estar', 'pres_ind', 1, 'sg'),
+            'está': ('estar', 'pres_ind', 3, 'sg'),
+            'estamos': ('estar', 'pres_ind', 1, 'pl'),
+            'estão': ('estar', 'pres_ind', 3, 'pl'),
+            'esteve': ('estar', 'pret_perf', 3, 'sg'),
+            'estivesse': ('estar', 'subj_imperf', 1, 'sg'),
+            # ser — more forms
+            'és': ('ser', 'pres_ind', 2, 'sg'),
+            'são': ('ser', 'pres_ind', 3, 'pl'),
+            'foste': ('ser/ir', 'pret_perf', 2, 'sg'),
+            'fostes': ('ser/ir', 'pret_perf', 2, 'pl'),
+            'seja': ('ser', 'subj_pres', 3, 'sg'),
+            # fazer — subjunctive
+            'fizesse': ('fazer', 'subj_imperf', 1, 'sg'),
+            'faço': ('fazer', 'pres_ind', 1, 'sg'),
+            'faz': ('fazer', 'pres_ind', 3, 'sg'),
+            'fazemos': ('fazer', 'pres_ind', 1, 'pl'),
+            'fazem': ('fazer', 'pres_ind', 3, 'pl'),
+            # dizer — present
+            'digo': ('dizer', 'pres_ind', 1, 'sg'),
+            'diz': ('dizer', 'pres_ind', 3, 'sg'),
+            'dizemos': ('dizer', 'pres_ind', 1, 'pl'),
+            'dizem': ('dizer', 'pres_ind', 3, 'pl'),
+            'disseste': ('dizer', 'pret_perf', 2, 'sg'),
+            # trazer — present
+            'trago': ('trazer', 'pres_ind', 1, 'sg'),
+            'traz': ('trazer', 'pres_ind', 3, 'sg'),
+            'trazemos': ('trazer', 'pres_ind', 1, 'pl'),
+            'trazem': ('trazer', 'pres_ind', 3, 'pl'),
+            'trouxeste': ('trazer', 'pret_perf', 2, 'sg'),
+            # correr — generic ending "remos" beats "emos" by length; pin common forms
+            'corremos': ('correr', 'pres_ind', 1, 'pl'),
+            'correm': ('correr', 'pres_ind', 3, 'pl'),
+            'corre': ('correr', 'pres_ind', 3, 'sg'),
         }
 
         # ── Integration: POS tagger ──
@@ -967,6 +1058,7 @@ class PortugueseMorphAnalyzer:
                 allomorph=working,
             )
             result.root = working
+            result.lemma_guess = lemma
             result.morphemes.append(Morpheme(working, MorphemeType.ROOT, label=f'irregular:{lemma}'))
             if self.config.extract_phonology:
                 result.phonology = self._extract_phonology(normalized)
@@ -1040,18 +1132,46 @@ class PortugueseMorphAnalyzer:
             for ending, tm, per, num, conj in self._verbal:
                 if working.endswith(ending):
                     root = working[:-len(ending)]
-                    # Thematic vowel extraction
+                    # Thematic vowel extraction: only strip the final vowel when it matches the
+                    # expected thematic vowel for the known conjugation class, or when the
+                    # conjugation class is unknown (0/None) so we infer it from the vowel.
+                    # Endings like "ada" (conj=1) encode the class but NOT the TV directly
+                    # in the root — "unci" from "anunciada" ends in 'i' which is stem, not TV.
                     if root and root[-1] in 'aei':
-                        result.verbal.thematic_vowel = root[-1]
-                        if result.verbal.conjugation_class is None:
-                            result.verbal.conjugation_class = {'a': 1, 'e': 2, 'i': 3}.get(root[-1])
-                        root = root[:-1]
-                        result.morphemes.append(Morpheme(root, MorphemeType.ROOT, label='verbal_root'))
-                        result.morphemes.append(Morpheme(result.verbal.thematic_vowel, MorphemeType.THEMATIC_VOWEL))
+                        _expected_tv = {1: 'a', 2: 'e', 3: 'i'}.get(result.verbal.conjugation_class)
+                        _tv_matches = (result.verbal.conjugation_class in (None, 0)
+                                       or root[-1] == _expected_tv)
+                        if _tv_matches:
+                            result.verbal.thematic_vowel = root[-1]
+                            if result.verbal.conjugation_class in (None, 0):
+                                result.verbal.conjugation_class = {'a': 1, 'e': 2, 'i': 3}.get(root[-1])
+                            root = root[:-1]
+                            result.morphemes.append(Morpheme(root, MorphemeType.ROOT, label='verbal_root'))
+                            result.morphemes.append(Morpheme(result.verbal.thematic_vowel, MorphemeType.THEMATIC_VOWEL))
+                        else:
+                            result.morphemes.append(Morpheme(root, MorphemeType.ROOT, label='verbal_root'))
                     else:
                         result.morphemes.append(Morpheme(root, MorphemeType.ROOT, label='verbal_root'))
                     result.morphemes.append(Morpheme(ending, MorphemeType.TENSE_MOOD, label=result.verbal.tense_mood))
                     break
+            # Past-participle flag
+            if result.verbal.tense_mood == 'participle':
+                result.verbal.is_past_participle = True
+            # Lemmatize regular verbs: reconstruct infinitive from root + conjugation class.
+            # Thematic vowel may be None when it was baked into the ending (e.g. "avam" for 1st
+            # conjugation); fall back to conjugation_class in that case.
+            if not result.verbal.is_irregular:
+                _tv = result.verbal.thematic_vowel
+                if _tv is None and result.verbal.conjugation_class:
+                    _tv = {1: 'a', 2: 'e', 3: 'i'}.get(result.verbal.conjugation_class)
+                if _tv:
+                    _inf_sfx = {'a': 'ar', 'e': 'er', 'i': 'ir'}.get(_tv, '')
+                    if _inf_sfx:
+                        _stem_lemma = root + _inf_sfx
+                        # Prepend any stripped prefixes so the lemma is the full inflected form
+                        if result.prefixes:
+                            _stem_lemma = ''.join(p[0] for p in result.prefixes) + _stem_lemma
+                        result.verbal.lemma_guess = _stem_lemma
         elif irr_found:
             result.morphemes.append(
                 Morpheme(working, MorphemeType.ROOT, label=f'irregular:{result.verbal.lemma_guess}'))
@@ -1061,10 +1181,24 @@ class PortugueseMorphAnalyzer:
             root = working[:-len(sfx_form)] if working.endswith(sfx_form) else working
             result.morphemes.append(Morpheme(root, MorphemeType.ROOT, label='derivational_root'))
             result.morphemes.append(Morpheme(sfx_form, MorphemeType.SUFFIX, label=str(result.suffix[1])))
+            # Noun/adj lemma guess from derivational root (for stable categories only)
+            _sfx_cat = result.suffix[1]
+            _LEMMA_CATS = {
+                SuffixCategory.NOUN_ABSTRACT, SuffixCategory.NOUN_AGENT,
+                SuffixCategory.NOUN_ACTION, SuffixCategory.NOUN_PLACE,
+                SuffixCategory.ADJECTIVE, SuffixCategory.ADVERB,
+                SuffixCategory.SCIENTIFIC, SuffixCategory.GENTILICO,
+            }
+            if _sfx_cat in _LEMMA_CATS and root:
+                result.lemma_guess = root
         else:
             result.morphemes.append(Morpheme(working, MorphemeType.ROOT, label='root'))
 
         result.root = root
+
+        # Propagate verbal lemma_guess to top-level for convenient access
+        if result.verbal and result.verbal.lemma_guess:
+            result.lemma_guess = result.verbal.lemma_guess
 
         # 8. Phonological features
         if self.config.extract_phonology:
@@ -1079,6 +1213,18 @@ class PortugueseMorphAnalyzer:
     def segment(self, word: str) -> str:
         """Convenience: return just the segmentation string."""
         return self.analyze(word).segmentation_str()
+
+    def lemmatize(self, word: str, pos_tag: Optional[str] = None) -> str:
+        """Return the best lemma guess for *word*; falls back to *word* itself.
+
+        For verbs this is the infinitive form (e.g. ``cantavam`` → ``cantar``).
+        For derivational words it is the root before the suffix
+        (e.g. ``rapidamente`` → ``rapid``).
+        """
+        result = self.analyze(word, pos_tag=pos_tag)
+        if result.lemma_guess:
+            return result.lemma_guess
+        return result.root or word
 
     # ── Private Methods ─────────────────────
 
@@ -1099,19 +1245,32 @@ class PortugueseMorphAnalyzer:
 
         Uses tugatagger (if available) to tag the full sentence first,
         then feeds each word's POS into analyze() for better disambiguation.
+        Falls back to an internal rule-based heuristic tagger so that
+        sentence-level analysis is always better than isolated word analysis
+        even without the optional tugatagger dependency.
         """
-        # Get sentence-level POS tags
         word_pos_pairs: List[Tuple[str, Optional[str]]] = []
         if self._tagger is not None:
             try:
                 tagged = self._tagger.tag(sentence)
                 word_pos_pairs = tagged
             except Exception:
-                word_pos_pairs = [(w, None) for w in sentence.split()]
+                word_pos_pairs = self._tag_heuristic(sentence)
         else:
-            word_pos_pairs = [(w, None) for w in sentence.split()]
+            word_pos_pairs = self._tag_heuristic(sentence)
 
         return [self.analyze(word, pos_tag=pos) for word, pos in word_pos_pairs]
+
+    def _tag_heuristic(self, sentence: str) -> List[Tuple[str, str]]:
+        """Rule-based sentence tokeniser + POS tagger used when tugatagger is absent.
+
+        Tokenises with a word-boundary regex (preserves accented chars), then
+        applies the static ``_guess_pos`` heuristic to each token.  Provides
+        modest POS context for suffix-vs-verbal disambiguation without adding
+        any external dependency.
+        """
+        tokens = re.findall(r'\b\w+\b', sentence, re.UNICODE)
+        return [(tok, self._guess_pos(tok)) for tok in tokens]
 
     @staticmethod
     def _guess_pos(word: str) -> str:
@@ -1373,6 +1532,41 @@ class PortugueseMorphAnalyzer:
             return StressPattern.OXYTONE, n - 1
         else:
             return StressPattern.PAROXYTONE, max(0, n - 2)
+
+
+# ─────────────────────────────────────────────
+# Module-level convenience API
+# ─────────────────────────────────────────────
+
+_default_analyzer: Optional[PortugueseMorphAnalyzer] = None
+
+
+def _get_analyzer() -> PortugueseMorphAnalyzer:
+    """Lazy-initialise the module-level default analyser."""
+    global _default_analyzer
+    if _default_analyzer is None:
+        _default_analyzer = PortugueseMorphAnalyzer()
+    return _default_analyzer
+
+
+def lemmatize_word(word: str, pos_tag: Optional[str] = None) -> str:
+    """Return the best lemma guess for *word* without creating an analyser instance.
+
+    For verbs this is the infinitive (e.g. ``cantavam`` → ``cantar``,
+    ``disseram`` → ``dizer``).  For derivational words it is the root
+    (e.g. ``rapidamente`` → ``rapid``).  Falls back to *word* itself.
+    """
+    return _get_analyzer().lemmatize(word, pos_tag=pos_tag)
+
+
+def is_past_participle(word: str) -> bool:
+    """Return *True* if *word* is likely a Portuguese past participle.
+
+    Examples: ``anunciada`` → True, ``aprovado`` → True,
+    ``cantando`` → False, ``casa`` → False.
+    """
+    result = _get_analyzer().analyze(word)
+    return bool(result.verbal and result.verbal.is_past_participle)
 
 
 # ─────────────────────────────────────────────

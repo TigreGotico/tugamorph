@@ -1,0 +1,14 @@
+name: Run Tests
+
+on:
+  pull_request:
+    branches: [dev, master]
+  push:
+    branches: [dev]
+
+jobs:
+  tests:
+    uses: TigreGotico/gh-automations/.github/workflows/build-tests.yml@dev
+    with:
+      python-version: "3.11"
+      install-extras: "tugatagger"
