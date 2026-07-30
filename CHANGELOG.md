@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased](https://github.com/TigreGotico/tugamorph/tree/HEAD)
+
+[Full Changelog](https://github.com/TigreGotico/tugamorph/compare/0.0.2a1...HEAD)
+
+**Merged pull requests:**
+
+- docs: rewrite README in Simplified Technical English [\#4](https://github.com/TigreGotico/tugamorph/pull/4) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.0.2a1](https://github.com/TigreGotico/tugamorph/tree/0.0.2a1) (2026-05-29)
 
 [Full Changelog](https://github.com/TigreGotico/tugamorph/compare/0.0.1...0.0.2a1)
