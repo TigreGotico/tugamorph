@@ -1,4 +1,4 @@
-# Quickstart — zero to hero
+# Quickstart
 
 `tugamorph` takes a Portuguese word and tells you how it is built: which prefixes
 were stacked on, what the root is, which suffix or verbal ending closes it off,
@@ -26,7 +26,7 @@ works on length-based heuristics.
 ## 2. The one thing to understand
 
 You build a `PortugueseMorphAnalyzer` once and call `analyze(word)` on it. Each
-call returns a single `MorphologicalAnalysis` — the best parse for that word,
+call returns a single `MorphologicalAnalysis`: the best parse for that word,
 holding every layer the pipeline found.
 
 ```python
@@ -75,7 +75,7 @@ for r in results:
 ```
 
 `disseram` comes back as a single morpheme because it is a suppletive form caught
-by the whole-word irregular table — the analyzer recognises it as the
+by the whole-word irregular table. The analyzer recognizes it as the
 preterite of `dizer` rather than trying to peel it apart.
 
 ## 5. Export for ML
@@ -89,8 +89,5 @@ r.to_feature_vector()    # 17-dim list[float]
 r.to_json()              # JSON string of the feature dict
 ```
 
-## Where next
-
-- [api.md](api.md) — every class, method, kwarg, and the result fields in full
-- [advanced.md](advanced.md) — clitics, compounds, config toggles, extending the lexicon
-- [phonology.md](phonology.md) — syllables, stress, diphthongs, and the silabificador hookup
+---
+[Home](../README.md) · [API reference →](api.md)

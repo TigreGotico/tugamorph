@@ -1,8 +1,8 @@
-# TugaMorph 🇵🇹
+# TugaMorph
 
-A rule-based morphological analyzer for Portuguese. Segments words into prefixes, roots, suffixes, verbal inflections, and clitics, and produces structured analyses suitable for NLP pipelines, linguistic research, and language documentation.
+A rule-based morphological analyzer for Portuguese. It segments words into prefixes, roots, suffixes, verbal inflections, and clitics. It produces structured analyses for NLP pipelines, linguistic research, and language documentation.
 
-No dependencies beyond the Python standard library (3.8+). Optional integrations with [silabificador](https://github.com/TigreGotico/silabificador) and [tugatagger](https://github.com/TigreGotico/tugatagger) for improved syllabification and POS-informed disambiguation.
+The analyzer needs only the Python standard library (3.8+). Two optional integrations improve its output: [silabificador](https://github.com/TigreGotico/silabificador) for syllabification, and [tugatagger](https://github.com/TigreGotico/tugatagger) for POS-informed disambiguation.
 
 ## Installation
 
@@ -45,8 +45,8 @@ results = analyzer.analyze_batch(["desfazer", "infelizmente", "disseram"])
 
 | Component | Entries | Details |
 |---|---|---|
-| Prefixes | 57 | 9 categories — negation, position, intensity, temporal, repetition, connection, duality, quantity, size |
-| Derivational suffixes | 89 | 12 categories — scientific, abstract noun, agent, action, place, adjective, diminutive, augmentative, pejorative, gentílico, collective, adverb |
+| Prefixes | 57 | 9 categories: negation, position, intensity, temporal, repetition, connection, duality, quantity, size |
+| Derivational suffixes | 89 | 12 categories: scientific, abstract noun, agent, action, place, adjective, diminutive, augmentative, pejorative, gentílico, collective, adverb |
 | Verbal endings | 95 | All tenses, moods, persons, and conjugation classes (1st `-ar`, 2nd `-er`, 3rd `-ir`) |
 | Irregular verbs | 40 stem allomorphs + 58 whole-word lookups | ser, ir, ter, haver, fazer, dizer, poder, querer, saber, pôr, trazer, estar, … |
 | Clitics | 15 | Pronoun forms with person, number, and case annotation |
@@ -68,10 +68,10 @@ Input word
 
 Key design decisions:
 
-- **Longest-match-wins** between suffixes and verbal endings — `-logia` (5 chars, scientific) beats `-ia` (2 chars, imperfeito) for "biologia", but equal-length ties go to verbal for words like "cantaria".
-- **Prefix blocklist** prevents false decomposition — "biologia" won't split as `bi-`, "impossibilidade" won't strip a second `pos-` prefix.
-- **Whole-word irregular table** short-circuits the pipeline for ~60 common suppletive forms (`disseram`, `fizemos`, `vou`, …).
-- **POS-informed disambiguation** — when a tagger is available, VERB/AUX tags force verbal analysis and NOUN/ADJ tags force suffix analysis, overriding length heuristics.
+- **Longest-match-wins** between suffixes and verbal endings. `-logia` (5 chars, scientific) beats `-ia` (2 chars, imperfeito) for "biologia", but equal-length ties go to the verbal reading, as in "cantaria".
+- **Prefix blocklist** prevents false decomposition. "biologia" does not split as `bi-`, and "impossibilidade" does not strip a second `pos-` prefix.
+- **Whole-word irregular table** short-circuits the pipeline for about 60 common suppletive forms (`disseram`, `fizemos`, `vou`, and others).
+- **POS-informed disambiguation**: when a tagger is available, VERB/AUX tags force the verbal analysis and NOUN/ADJ tags force the suffix analysis, overriding the length heuristic.
 
 ## Output formats
 
@@ -179,7 +179,7 @@ Estimated from orthography (accurate syllabification when silabificador is insta
 | Nasal vowel | "ã", "õ" |
 | Digraphs | "ch", "lh", "nh", "rr", "ss", "qu", "gu" |
 
-Stress assignment: explicit accent marks override; otherwise standard Portuguese rules apply (words ending in `-a`, `-e`, `-o`, `-am`, `-em` default paroxytone; `-r`, `-l`, `-z`, `-i`, `-u` default oxytone).
+Stress assignment: an explicit accent mark overrides the default. Otherwise, standard Portuguese rules apply. Words ending in `-a`, `-e`, `-o`, `-am`, or `-em` default to paroxytone. Words ending in `-r`, `-l`, `-z`, `-i`, or `-u` default to oxytone.
 
 ## Extending the lexicon
 
@@ -209,19 +209,19 @@ analyzer._prefix_block_stems['recon'] = {'re'}   # don't strip re- from "reconhe
 
 ## Related projects
 
-- **[silabificador](https://github.com/TigreGotico/silabificador)** — rule-based Portuguese syllabifier (~99.6% accuracy on 53k words)
-- **[tugatagger](https://github.com/TigreGotico/tugatagger)** — unified POS tagging interface (spaCy / Brill / lexicon / heuristic fallback)
-- **[tugalex](https://github.com/TigreGotico/tugalex)** — Portuguese phonetic lexicon with IPA transcriptions, syllable segmentations, and AO1990 mappings for 5 dialect regions
+- **[silabificador](https://github.com/TigreGotico/silabificador)**: rule-based Portuguese syllabifier, about 99.6% accuracy on 53k words
+- **[tugatagger](https://github.com/TigreGotico/tugatagger)**: unified POS tagging interface (spaCy, Brill, lexicon, or heuristic fallback)
+- **[tugalex](https://github.com/TigreGotico/tugalex)**: Portuguese phonetic lexicon with IPA transcriptions, syllable segmentations, and AO1990 mappings for 5 dialect regions
 
 ## Limitations
 
 This is a rule-based heuristic analyzer, not a statistical model.
 
-- **Ambiguity is not modeled.** Returns a single best parse. Words like "canto" (noun "corner" vs. verb "I sing") match whichever pattern fires first without sentence context.
-- **The prefix blocklist is manually curated.** Uncommon words may get false prefix splits — extend `_prefix_block_stems` as needed.
-- **Syllable count is estimated** from orthography. Some hiatus vs. diphthong distinctions require phonological knowledge beyond spelling (mitigated when silabificador is installed).
-- **No lemmatization.** The analyzer provides `lemma_guess` for irregular verbs but does not perform full lemmatization.
-- **European Portuguese focus.** Suffix, prefix, and verbal tables reflect EP norms. Brazilian Portuguese verbal forms are covered by the endings table, but BP-specific morphological patterns are not specially annotated.
+- **Ambiguity is not modeled.** The analyzer returns a single best parse. Words like "canto" (noun "corner" vs. verb "I sing") match whichever pattern fires first without sentence context.
+- **The prefix blocklist is manually curated.** Uncommon words may get false prefix splits. Extend `_prefix_block_stems` as needed.
+- **Syllable count is estimated** from orthography. Some hiatus vs. diphthong distinctions need phonological knowledge beyond spelling, though installing silabificador reduces this.
+- **Lemmatization is a best-effort guess, not a full lemmatizer.** `lemmatize()` returns the infinitive for recognized verbs and the derivational root for suffixed words, falling back to the input word when it cannot guess.
+- **European Portuguese focus.** The suffix, prefix, and verbal tables reflect EP norms. The endings table covers Brazilian Portuguese verbal forms, but it does not annotate BP-specific morphological patterns separately.
 
 ## Testing
 
