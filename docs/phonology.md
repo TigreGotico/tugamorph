@@ -2,8 +2,8 @@
 
 Every analysis carries a `PhonologicalFeatures` object on `result.phonology`,
 estimated from orthography. When [silabificador](https://github.com/TigreGotico/silabificador)
-is installed (the default), syllabification comes from its rule-based engine;
-otherwise a built-in heuristic syllabifier is used.
+is installed (the default), syllabification comes from its rule-based engine.
+Otherwise the analyzer uses a built-in heuristic syllabifier.
 
 ## The fields
 
@@ -25,10 +25,10 @@ p.has_digraph               # ch / lh / nh / rr / ss / qu / gu present?
 
 ## Stress
 
-`stress_pattern` is one of `OXYTONE` (last syllable), `PAROXYTONE` (penultimate —
+`stress_pattern` is one of `OXYTONE` (last syllable), `PAROXYTONE` (penultimate,
 the Portuguese default), `PROPAROXYTONE` (antepenultimate), or `UNKNOWN`.
 
-Assignment follows standard rules: an explicit accent mark wins; otherwise words
+Assignment follows standard rules. An explicit accent mark wins. Otherwise words
 ending in `-a`, `-e`, `-o`, `-am`, `-em` default to paroxytone, and words ending
 in `-r`, `-l`, `-z`, `-i`, `-u` default to oxytone.
 
@@ -53,12 +53,9 @@ analyzer.analyze("saída").phonology.has_hiatus          # True  (a-í)
 
 The phonology fields surface in `to_feature_dict()` as `syllable_count`,
 `syllables`, `stressed_syllable_index`, `stress_pattern` (as a string),
-`has_nasal_diphthong`, `has_oral_diphthong`, and `has_hiatus`; the numeric vector
+`has_nasal_diphthong`, `has_oral_diphthong`, and `has_hiatus`. The numeric vector
 includes `syllable_count`, `has_nasal_diphthong`, `has_oral_diphthong`, and
 `has_hiatus`. See [api.md](api.md) for the full ordering.
 
-## Where next
-
-- [quickstart.md](quickstart.md) — the basics
-- [api.md](api.md) — full reference
-- [advanced.md](advanced.md) — config, clitics, lexicon extension
+---
+[← Advanced](advanced.md) · [Home](../README.md)

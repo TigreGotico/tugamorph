@@ -22,9 +22,9 @@ PortugueseMorphAnalyzer(config: Optional[AnalysisConfig] = None)
 ```
 
 `config` defaults to a fresh `AnalysisConfig()` with every stage enabled. The
-constructor pre-sorts the lexical tables for greedy longest-first matching and,
-if `tugatagger` is importable and `config.use_pos_tagger` is true, wires up a POS
-tagger; it falls back silently to heuristics otherwise.
+constructor pre-sorts the lexical tables for greedy longest-first matching. If
+`tugatagger` is importable and `config.use_pos_tagger` is true, it wires up a
+POS tagger. Otherwise it falls back silently to heuristics.
 
 ### Methods
 
@@ -75,8 +75,8 @@ to_json(indent: int = 2) -> str
 ```
 
 `to_feature_dict()` is flat and JSON-safe. It always carries the character,
-phonology, prefix, suffix, clitic, and compound fields; when the word is verbal it
-also adds `conjugation_class`, `tense_mood`, `person`, `number`, `thematic_vowel`,
+phonology, prefix, suffix, clitic, and compound fields. When the word is verbal,
+it also adds `conjugation_class`, `tense_mood`, `person`, `number`, `thematic_vowel`,
 `is_irregular`, and `lemma_guess`.
 
 `to_feature_vector()` returns these 17 floats in order:
@@ -140,8 +140,5 @@ See [advanced.md](advanced.md) for the full toggle list and what each one change
 `PREFIX_TABLE`, `SUFFIX_TABLE`, and `IRREGULAR_STEMS` are module-level lists/dicts
 intended to be extended in place. See [advanced.md](advanced.md#extending-the-lexicon).
 
-## Where next
-
-- [quickstart.md](quickstart.md) — install and first calls
-- [advanced.md](advanced.md) — config, clitics, compounds, lexicon extension
-- [phonology.md](phonology.md) — the phonological feature set in detail
+---
+[← Quickstart](quickstart.md) · [Home](../README.md) · [Advanced →](advanced.md)

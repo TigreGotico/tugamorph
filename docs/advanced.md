@@ -44,7 +44,7 @@ analyzer.analyze("disse-me").clitic
 
 r = analyzer.analyze("dir-se-ia")
 r.clitic.position     # <CliticPosition.MESOCLITIC>
-r.verbal.lemma_guess  # 'dizer'  — the remaining 'diria' is recognised as irregular
+r.verbal.lemma_guess  # 'dizer', because the remaining 'diria' is recognized as irregular
 ```
 
 `CliticInfo` carries the pronoun `form`, its `position`, and grammatical
@@ -77,7 +77,7 @@ analyzer.analyze("cantaria", pos_tag="VERB")   # verbal reading
 ```
 
 When `tugatagger` is installed and `pos_disambiguate=True`, this happens
-automatically. `analyze_sentence` is the strongest form — it tags the whole
+automatically. `analyze_sentence` is the strongest form. It tags the whole
 sentence so each word's POS reflects its context:
 
 ```python
@@ -112,13 +112,13 @@ analyzer._irregular_whole_words['deram'] = ('dar', 'pret_perf', 3, 'pl')
 analyzer._prefix_block_stems['recon'] = {'re'}   # keep "reconhecer" intact
 ```
 
-The prefix blocklist prevents false decompositions — it is what keeps `biologia`
+The prefix blocklist prevents false decompositions. It is what keeps `biologia`
 from splitting as `bi-ologia`. It is manually curated, so uncommon words may need
 a new entry here.
 
 ## Feeding an ML pipeline
 
-`to_feature_dict()` rows drop straight into a DataFrame; `to_feature_vector()`
+`to_feature_dict()` rows drop straight into a DataFrame. `to_feature_vector()`
 gives a fixed 17-dim numeric vector for models that want tensors:
 
 ```python
@@ -137,8 +137,5 @@ rows = [analyzer.analyze(w).to_feature_dict() for w in words]
 - [tugalex](https://github.com/TigreGotico/tugalex) is a phonetic lexicon with IPA
   transcriptions and dialect mappings, complementary for downstream phonetics.
 
-## Where next
-
-- [quickstart.md](quickstart.md) — the basics
-- [api.md](api.md) — full type and method reference
-- [phonology.md](phonology.md) — syllables, stress, and diphthong detection
+---
+[← API reference](api.md) · [Home](../README.md) · [Phonology →](phonology.md)
