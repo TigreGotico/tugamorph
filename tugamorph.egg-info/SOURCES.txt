@@ -1,0 +1,10 @@
+README.md
+setup.py
+tests/test_pt_morphology.py
+tugamorph/__init__.py
+tugamorph/version.py
+tugamorph.egg-info/PKG-INFO
+tugamorph.egg-info/SOURCES.txt
+tugamorph.egg-info/dependency_links.txt
+tugamorph.egg-info/top_level.txt
+tugamorph/__pycache__/__init__.cpython-311.pyc

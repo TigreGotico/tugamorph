@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "tugamorph"
+dynamic = ["version"]
+description = "Pure-Python morphological analyser for European Portuguese"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [{ name = "JarbasAi", email = "jarbasai@mailfence.com" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+silabificador = ["pt-silabificador"]
+tugatagger = ["tugatagger"]
+
+[project.urls]
+Homepage = "https://github.com/TigreGotico/tugamorph"
+
+[tool.setuptools.dynamic]
+version = {attr = "tugamorph.version.VERSION_STR"}
+
+[tool.setuptools.packages.find]
+include = ["tugamorph*"]
