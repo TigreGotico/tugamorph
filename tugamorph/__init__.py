@@ -36,7 +36,15 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Any, Set
 
-from silabificador import syllabify
+# pt-silabificador is an optional extra, so this import must not be able to
+# stop the package from importing. The tagger below uses the same shape, and
+# the syllable call site already falls back to _heuristic_syllabify.
+_HAS_SILABIFICADOR = False
+try:
+    from silabificador import syllabify
+    _HAS_SILABIFICADOR = True
+except ImportError:
+    syllabify = None
 
 # ─── Optional integration imports (graceful fallback) ───
 
@@ -992,7 +1000,7 @@ class PortugueseMorphAnalyzer:
 
         # ── Integration: Syllabifier ──
         self._ext_syllabify = None
-        if self.config.use_syllabifier:
+        if self.config.use_syllabifier and _HAS_SILABIFICADOR:
             self._ext_syllabify = syllabify
 
         # POS tag sets for disambiguation
