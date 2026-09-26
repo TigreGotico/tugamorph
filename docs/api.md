@@ -108,7 +108,15 @@ VerbalAnalysis(conjugation_class=None, tense_mood="none", person=None,
 ```
 
 `conjugation_class` is `1` (`-ar`), `2` (`-er`), or `3` (`-ir`). `lemma_guess` is
-populated for irregular forms only.
+the infinitive, for irregular forms and for regular inflections whose
+infinitive the analyzer can rebuild.
+
+The `-ido/-ida/-idos/-idas` participle belongs to the 2nd conjugation
+(`comida` from `comer`) or to the 3rd (`partida` from `partir`). The ending
+does not say which, so the analyzer reads the class off the stem: it keeps the
+candidate infinitive that the lexicon attests. When neither candidate is a
+word, as in the noun `avenida`, `lemma_guess` and `conjugation_class` stay
+`None`.
 
 ```python
 PhonologicalFeatures(syllable_count=0, syllables=[], stressed_syllable_index=None,

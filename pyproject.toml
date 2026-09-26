@@ -18,7 +18,10 @@ dependencies = ["silabificador"]
 
 [project.optional-dependencies]
 tugatagger = ["tugatagger"]
-test = ["pytest"]
+# tugatagger is here so the suite covers the tagger-installed path: the
+# tiebreak rules in tests/test_pos_tiebreak.py only mean something when a
+# real tag is available to ignore.
+test = ["pytest", "tugatagger"]
 
 [project.urls]
 Homepage = "https://github.com/TigreGotico/tugamorph"
