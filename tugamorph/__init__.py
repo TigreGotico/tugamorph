@@ -48,6 +48,14 @@ try:
 except ImportError:
     _ExtTugaTagger = None
 
+_HAS_LEXICON = False
+
+try:
+    from tugalex import TugaLexicon as _ExtTugaLexicon
+    _HAS_LEXICON = True
+except ImportError:
+    _ExtTugaLexicon = None
+
 
 # ─────────────────────────────────────────────
 # Enums
@@ -319,6 +327,7 @@ class AnalysisConfig:
 
     # POS tagger integration (tugatagger)
     use_pos_tagger: bool = True  # Use tugatagger if installed, else heuristic
+    use_lexicon: bool = True  # Use tugalex, if installed, to reject unattested -ia verbs
     tagger_engine: str = "auto"  # "auto", "spacy", "brill", "lexicon", "dummy"
     pos_disambiguate: bool = True  # Use POS to break verbal vs suffix ties
 
@@ -454,10 +463,12 @@ SUFFIX_TABLE: List[Tuple[str, SuffixCategory]] = [
     ('ança', SuffixCategory.NOUN_ACTION),
     ('ença', SuffixCategory.NOUN_ACTION),
     ('ida', SuffixCategory.NOUN_ACTION),
+    ('ia', SuffixCategory.NOUN_ABSTRACT),
 
     # Noun: place
     ('ário', SuffixCategory.NOUN_PLACE),
     ('aria', SuffixCategory.NOUN_PLACE),
+    ('eria', SuffixCategory.NOUN_PLACE),
     ('ório', SuffixCategory.NOUN_PLACE),
     ('eiro', SuffixCategory.NOUN_PLACE),
 
@@ -708,6 +719,58 @@ VERBAL_ENDINGS: List[Tuple[str, str, int, str, int]] = [
 
 # Irregular verb stem → lemma mappings
 # Maps allomorph stems to (lemma, typical_tense_context)
+# Every verbal ending in VERBAL_ENDINGS starts with one of these characters.
+# A remainder after an irregular stem that starts with anything else is a
+# derivational ending, not an inflection.
+_LEXICON_WORDS: Optional[Set[str]] = None
+
+
+def _load_lexicon_words() -> Set[str]:
+    """Load the attested word list once per process.
+
+    Every analyser instance shares it. The list has about 53 000 entries and
+    building it for each instance makes a test suite that creates hundreds of
+    analysers unusable.
+    """
+    global _LEXICON_WORDS
+    if _LEXICON_WORDS is None:
+        try:
+            _LEXICON_WORDS = set(_ExtTugaLexicon().possible_postags.keys())
+        except Exception:
+            _LEXICON_WORDS = set()
+    return _LEXICON_WORDS
+
+
+_INFLECTION_INITIALS: Set[str] = {'a', 'e', 'i', 'o', 'r', 'á', 'ã', 'ê', 'í', 'õ', 'ó', 'ú'}
+
+# The inflections that build the conditional on a future stem.
+_CONDITIONAL_INFLECTIONS: Set[str] = {'ia', 'ias', 'iam', 'íamos', 'íeis'}
+
+# Conditional endings of the -ia family. The conditional is built on the
+# INFINITIVE, so whatever precedes them must look like one.
+_CONDITIONAL_IA_ENDINGS: Set[str] = {
+    'aria', 'eria', 'iria', 'ria',
+    'arias', 'erias', 'irias', 'rias',
+    'ariam', 'eriam', 'iriam', 'riam',
+    'aríamos', 'eríamos', 'iríamos', 'ríamos',
+    'aríeis', 'eríeis', 'iríeis', 'ríeis',
+}
+
+# *pôr* and its compounds are the only infinitives that do not end in
+# -ar/-er/-ir. Plain "or" is NOT an infinitive ending: it would let the nouns
+# "teoria" (teor) and "sabedoria" (sabedor) keep a conditional reading.
+# Imperfect endings of the 2nd and 3rd conjugation. They are the same strings
+# that end a large class of Portuguese nouns.
+_IMPERFECT_IA_ENDINGS: Set[str] = {'ia', 'ias', 'iam', 'íamos', 'íeis'}
+
+_INFINITIVE_ENDINGS: Tuple[str, ...] = ('ar', 'er', 'ir', 'ôr')
+
+_IA_FAMILY_ENDINGS: Set[str] = _CONDITIONAL_IA_ENDINGS | _IMPERFECT_IA_ENDINGS
+
+# Suffixes that are only safe to propose when a lexicon can adjudicate them
+# against the verbal reading that shares the same string.
+_LEXICON_ONLY_SUFFIXES: Set[str] = {'ia', 'eria'}
+
 IRREGULAR_STEMS: Dict[str, Tuple[str, str]] = {
     # ser / ir
     'fo': ('ser/ir', 'pret_perf'),
@@ -806,6 +869,8 @@ class PortugueseMorphAnalyzer:
         self._prefixes = sorted(PREFIX_TABLE, key=lambda x: -len(x[0]))
         self._suffixes = sorted(SUFFIX_TABLE, key=lambda x: -len(x[0]))
         self._verbal = sorted(VERBAL_ENDINGS, key=lambda x: -len(x[0]))  # longest-first
+        self._verbal_ending_forms = {e[0] for e in VERBAL_ENDINGS}
+        self._lexicon_words: Optional[Set[str]] = None
         self._irregulars = IRREGULAR_STEMS
 
         # Pre-compile clitic pattern
@@ -1096,6 +1161,13 @@ class PortugueseMorphAnalyzer:
             sfx_match = self._find_suffix(working) if self.config.extract_suffixes else None
             vrb_match = self._find_verbal(working) if self.config.extract_verbal else None
 
+            # The -ia and -eria noun suffixes can only be told from the
+            # conditional and the imperfect by the lexicon. Without it they are
+            # withdrawn from the contest, so an installation with no tugalex
+            # behaves exactly as earlier versions did.
+            if sfx_match is not None and sfx_match[0] in _LEXICON_ONLY_SUFFIXES and not self._words:
+                sfx_match = None
+
             sfx_len = len(sfx_match[0]) if sfx_match else 0
             vrb_len = len(vrb_match[0]) if vrb_match else 0
 
@@ -1105,7 +1177,24 @@ class PortugueseMorphAnalyzer:
             pos_prefers_nominal = (
                         _pos_from_tagger and pos_tag in self._nominal_pos) if self.config.pos_disambiguate else False
 
-            if pos_prefers_verbal and vrb_len > 0:
+            # An -ia ending that survived the lexicon test is settled evidence:
+            # _find_verbal only returns it when the infinitive it implies is a
+            # real word, so "comia" (comer) keeps its verbal reading while
+            # "energia" never reaches this point. A POS tag must not overturn
+            # that, because the tagger reads "comia" as a noun often enough.
+            # Without tugalex there is no evidence either way, and the verbal
+            # reading is kept exactly as earlier versions kept it, so a plain
+            # install never loses an imperfect it used to find.
+            ia_reading_is_proven = (
+                bool(self._words)
+                and vrb_match is not None
+                and vrb_match[0] in _IA_FAMILY_ENDINGS
+            )
+
+            if ia_reading_is_proven:
+                self._apply_verbal(vrb_match, result)
+                verb_found = True
+            elif pos_prefers_verbal and vrb_len > 0:
                 # POS says VERB → always prefer verbal
                 self._apply_verbal(vrb_match, result)
                 verb_found = True
@@ -1394,23 +1483,128 @@ class PortugueseMorphAnalyzer:
         # Try longest stems first
         for stem in sorted(self._irregulars.keys(), key=lambda x: -len(x)):
             if word.startswith(stem) and len(word) <= len(stem) + 6:
+                remainder = word[len(stem):]
+                if not self._is_inflectional_remainder(remainder):
+                    continue
                 lemma, tense_ctx = self._irregulars[stem]
                 if result.verbal is None:
                     result.verbal = VerbalAnalysis()
                 result.verbal.is_irregular = True
                 result.verbal.lemma_guess = lemma
                 result.verbal.allomorph = stem
-                result.verbal.tense_mood = tense_ctx
+                result.verbal.tense_mood = self._irregular_tense(tense_ctx, remainder)
                 return True
         return False
+
+    def _is_inflectional_remainder(self, remainder: str) -> bool:
+        """Is what follows an irregular stem a possible Portuguese inflection?
+
+        A stem match alone is not evidence. "vida" (life) starts with the
+        irregular stem "vi" of *ver*, and without this test it is filed as a
+        preterite of *ver* although no form of *ver* is "vida". Every verbal
+        ending in the table starts with a vowel or with "r", so a remainder
+        that starts with any other consonant is derivational, not
+        inflectional.
+        """
+        if remainder == '':
+            return True
+        if remainder in self._verbal_ending_forms:
+            return True
+        return remainder[0] in _INFLECTION_INITIALS
+
+    @staticmethod
+    def _irregular_tense(tense_ctx: str, remainder: str) -> str:
+        """Let the inflection decide the tense of an irregular stem.
+
+        The stem table records one tense per stem, but a future stem also
+        builds the conditional: *fazer* gives "fará" and "faria" from the same
+        stem "far", and *dizer* gives "dirá" and "diria" from "dir". Without
+        this, "faria" reads as a future.
+        """
+        if tense_ctx == 'fut_ind' and remainder in _CONDITIONAL_INFLECTIONS:
+            return 'conditional'
+        return tense_ctx
 
     def _find_verbal(self, word: str) -> Optional[Tuple[str, str, int, str, int]]:
         """Find the longest matching verbal ending. Returns the full tuple or None."""
         for entry in self._verbal:
             ending = entry[0]
             if word.endswith(ending) and len(word) - len(ending) >= self.config.min_root_length:
+                if not self._conditional_is_possible(word, ending):
+                    continue
+                if not self._ia_reading_is_attested(word, ending):
+                    continue
                 return entry
         return None
+
+    @property
+    def _words(self) -> Set[str]:
+        """The attested word list, loaded once, empty when tugalex is absent."""
+        if self._lexicon_words is None:
+            if _HAS_LEXICON and self.config.use_lexicon:
+                self._lexicon_words = _load_lexicon_words()
+            else:
+                self._lexicon_words = set()
+        return self._lexicon_words
+
+    def _ia_reading_is_attested(self, word: str, ending: str) -> bool:
+        """Keep an -ia verbal reading only when its infinitive is a real word.
+
+        The endings -ia/-ias/-iam/-íamos/-íeis carry the conditional and the
+        2nd/3rd conjugation imperfect, and they are also the ending of a large
+        class of Portuguese nouns: "padaria" (bakery), "cafeteria", "alegria"
+        (joy), "teoria", "energia", "ironia". Shape alone cannot separate
+        "padaria" from "cantaria"; the difference is that *cantar* is a verb
+        and *padar* is not.
+
+        So the reading is kept only when the infinitive it implies is in the
+        lexicon. Without tugalex installed there is no evidence either way and
+        the reading is kept, which is the behaviour of earlier versions.
+
+        A word that is both a noun and a real verb form stays verbal, because
+        it genuinely is ambiguous: "livraria" is a bookshop and the
+        conditional of *livrar*, "bateria" is a battery and the conditional of
+        *bater*.
+        """
+        words = self._words
+        if not words:
+            return True
+        for inflection in ('íamos', 'íeis', 'iam', 'ias', 'ia'):
+            if not word.endswith(inflection):
+                continue
+            stem = word[:-len(inflection)]
+            if ending in _CONDITIONAL_IA_ENDINGS:
+                # Conditional: the stem IS the infinitive (cantar + ia).
+                return stem in words
+            if ending in _IMPERFECT_IA_ENDINGS:
+                # Imperfect of the 2nd/3rd conjugation: stem + er/ir
+                # (com + ia -> comer, part + ia -> partir).
+                return (stem + 'er') in words or (stem + 'ir') in words
+            return True
+        return True
+
+    @staticmethod
+    def _conditional_is_possible(word: str, ending: str) -> bool:
+        """Reject a conditional reading that is not built on an infinitive.
+
+        The Portuguese conditional is INFINITIVE + ia/ias/iam/íamos/íeis:
+        "cantar" + "ia" = "cantaria". So the string in front of the "ia" part
+        must end like an infinitive. It does for "cantaria" (cantar) and it
+        does not for "alegria" (aleg), "teoria" (teo), "geometria" (geomet) or
+        "sabedoria" (sabedo), which are nouns that end the same way.
+
+        This test does NOT separate "padaria" from "cantaria": both give a
+        well-formed infinitive shape, and only a lexicon knows that *padar* is
+        not a Portuguese verb. See _verbal_reading_is_attested.
+        """
+        if ending not in _CONDITIONAL_IA_ENDINGS:
+            return True
+        # Strip the inflection that follows the infinitive, e.g. "cantaria"
+        # minus "ia" is "cantar", "cantaríamos" minus "íamos" is "cantar".
+        for inflection in ('íamos', 'íeis', 'iam', 'ias', 'ia'):
+            if word.endswith(inflection):
+                return word[:-len(inflection)].endswith(_INFINITIVE_ENDINGS)
+        return True
 
     def _extract_verbal(self, word: str, result: MorphologicalAnalysis) -> bool:
         """Match the longest verbal ending and apply it."""
