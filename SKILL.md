@@ -51,6 +51,8 @@ Given `is_past_participle("aprovado") == True`:
 | Extra | Installs | Effect |
 |-------|----------|--------|
 | `tugatagger` | `tugatagger` | Full sentence-level POS context for disambiguation |
-| `silabificador` | `pt-silabificador` | Syllabification and stress-pattern features |
 
 Install: `pip install tugamorph[tugatagger]`
+
+`silabificador` is a required dependency, not an extra: a plain install pulls it
+in, and it carries the syllabification and stress-pattern features.

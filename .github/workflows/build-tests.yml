@@ -1,14 +1,16 @@
-name: Run Tests
+name: Build Tests
 
 on:
   pull_request:
     branches: [dev, master]
   push:
     branches: [dev]
+  workflow_dispatch:
 
 jobs:
-  tests:
-    uses: TigreGotico/gh-automations/.github/workflows/build-tests.yml@dev
+  build:
+    uses: OpenVoiceOS/gh-automations/.github/workflows/build-tests.yml@dev
     with:
-      python-version: "3.11"
-      install-extras: "tugatagger"
+      python_versions: '["3.10", "3.11", "3.12", "3.13", "3.14"]'
+      install_extras: 'test'
+      test_path: 'tests'

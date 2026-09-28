@@ -1675,3 +1675,32 @@ class TestHeuristicFallback(unittest.TestCase):
         results = self.a.analyze_sentence("Ela cantava muito bem.")
         for r in results:
             self.assertIsInstance(r, MorphologicalAnalysis)
+
+
+class TestSyllabifierIsRequired(unittest.TestCase):
+    """`silabificador` is a dependency, not an extra.
+
+    A plain install must carry it, and the analyser must use it rather than
+    the orthographic estimate. The estimate divides `cantavamos` as
+    ca-nta-va-mos, where the syllabifier gives can-ta-va-mos, so it is wrong
+    and not only coarser.
+    A fallback that returns wrong syllables silently is the failure this
+    dependency removes.
+    """
+
+    def test_the_package_imports_with_no_extras(self):
+        import tugamorph
+        self.assertTrue(hasattr(tugamorph, "PortugueseMorphAnalyzer"))
+
+    def test_the_syllabifier_is_importable(self):
+        from silabificador import syllabify
+        self.assertTrue(callable(syllabify))
+
+    def test_the_analyser_uses_it_and_not_the_estimate(self):
+        a = PortugueseMorphAnalyzer()
+        self.assertIsNotNone(a._ext_syllabify)
+        self.assertEqual(a._ext_syllabify("cantavamos"),
+                         ["can", "ta", "va", "mos"])
+        self.assertNotEqual(a._ext_syllabify("cantavamos"),
+                            a._heuristic_syllabify("cantavamos"))
+
