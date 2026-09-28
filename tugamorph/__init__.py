@@ -36,17 +36,23 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Any, Set
 
-from silabificador import syllabify
 
 # ─── Optional integration imports (graceful fallback) ───
 
 _HAS_TAGGER = False
+_HAS_SYLLABIFIER = False
 
 try:
     from tugatagger import TugaTagger as _ExtTugaTagger
     _HAS_TAGGER = True
 except ImportError:
     _ExtTugaTagger = None
+
+try:
+    from silabificador import syllabify
+    _HAS_SYLLABIFIER = True
+except ImportError:
+    syllabify = None
 
 
 # ─────────────────────────────────────────────
@@ -992,7 +998,7 @@ class PortugueseMorphAnalyzer:
 
         # ── Integration: Syllabifier ──
         self._ext_syllabify = None
-        if self.config.use_syllabifier:
+        if self.config.use_syllabifier and _HAS_SYLLABIFIER:
             self._ext_syllabify = syllabify
 
         # POS tag sets for disambiguation

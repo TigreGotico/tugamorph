@@ -21,7 +21,9 @@ Covers:
 """
 
 import json
+import tugamorph
 import unittest
+from unittest import mock
 from tugamorph import (
     PortugueseMorphAnalyzer,
     AnalysisConfig,
@@ -1675,3 +1677,22 @@ class TestHeuristicFallback(unittest.TestCase):
         results = self.a.analyze_sentence("Ela cantava muito bem.")
         for r in results:
             self.assertIsInstance(r, MorphologicalAnalysis)
+
+
+class TestOptionalSilabificador(unittest.TestCase):
+    """silabificador is optional: the package imports and works without it."""
+
+    def test_module_exposes_the_syllabifier_flag(self):
+        self.assertIsInstance(tugamorph._HAS_SYLLABIFIER, bool)
+
+    def test_analysis_works_with_the_syllabifier_absent(self):
+        with mock.patch.object(tugamorph, "_HAS_SYLLABIFIER", False):
+            a = PortugueseMorphAnalyzer()
+            self.assertIsNone(a._ext_syllabify)
+            r = a.analyze("cantavamos")
+            self.assertIsInstance(r, MorphologicalAnalysis)
+
+    def test_heuristic_syllabifier_returns_syllables(self):
+        a = PortugueseMorphAnalyzer()
+        self.assertEqual(a._heuristic_syllabify("cantavamos"),
+                         ["ca", "nta", "va", "mos"])
