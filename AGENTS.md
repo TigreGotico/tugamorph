@@ -8,11 +8,12 @@ Rule-based morphological analyzer for Portuguese. Segments words into prefixes, 
 pip install -e .
 ```
 
-Pure standard library (Python 3.8+); no required runtime dependencies. Optional integrations improve accuracy if importable:
+The standard library plus `silabificador`, which a plain install pulls in and
+which carries syllabification (Python 3.8+). One optional integration improves
+accuracy if importable:
 
 ```bash
-pip install git+https://github.com/TigreGotico/silabificador   # syllabification
-pip install git+https://github.com/TigreGotico/tugatagger       # POS disambiguation
+pip install tugamorph[tugatagger]   # POS disambiguation
 ```
 
 ## Test
@@ -55,5 +56,5 @@ Public API: `PortugueseMorphAnalyzer`, `AnalysisConfig`, plus the module-level d
 - Analysis is single-best-parse and heuristic — no ambiguity modeling, no full lemmatization (only `lemma_guess` for irregular verbs). The pipeline is ordered: irregular whole-word lookup short-circuits first, then clitics, compounds, prefix stacking, irregular stems, suffix vs verbal ending (longest-match-wins), root extraction, phonology.
 - Suffix-vs-verbal ties: longest match wins; equal-length ties default to verbal. A POS tagger (tugatagger), when present, overrides this via `pos_disambiguate`.
 - The prefix blocklist (`_prefix_block_stems`) is manually curated; uncommon words may get false prefix splits.
-- Phonology is estimated from orthography unless silabificador is installed.
+- Phonology is estimated from orthography; syllabification comes from silabificador, which is a required dependency.
 - European Portuguese focus; BP-specific morphology is not specially annotated.

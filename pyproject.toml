@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "tugamorph"
@@ -14,11 +14,11 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 requires-python = ">=3.8"
-dependencies = []
+dependencies = ["silabificador"]
 
 [project.optional-dependencies]
-silabificador = ["pt-silabificador"]
 tugatagger = ["tugatagger"]
+test = ["pytest"]
 
 [project.urls]
 Homepage = "https://github.com/TigreGotico/tugamorph"

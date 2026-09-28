@@ -2,7 +2,7 @@
 
 A rule-based morphological analyzer for Portuguese. It segments words into prefixes, roots, suffixes, verbal inflections, and clitics. It produces structured analyses for NLP pipelines, linguistic research, and language documentation.
 
-The analyzer needs only the Python standard library (3.8+). Two optional integrations improve its output: [silabificador](https://github.com/TigreGotico/silabificador) for syllabification, and [tugatagger](https://github.com/TigreGotico/tugatagger) for POS-informed disambiguation.
+The analyzer needs [silabificador](https://github.com/TigreGotico/silabificador) for syllabification, which a plain install pulls in, and otherwise only the Python standard library (3.8+). One optional integration improves its output: [tugatagger](https://github.com/TigreGotico/tugatagger) for POS-informed disambiguation.
 
 ## Installation
 
@@ -10,11 +10,11 @@ The analyzer needs only the Python standard library (3.8+). Two optional integra
 pip install tugamorph
 ```
 
-Optional extras for enhanced accuracy:
+A plain install pulls in the syllabifier. One optional extra improves accuracy
+further:
 
 ```bash
-pip install git+https://github.com/TigreGotico/silabificador   # rule-based syllabifier (~99.6% accuracy)
-pip install git+https://github.com/TigreGotico/tugatagger       # POS tagger (spaCy / Brill / heuristic)
+pip install tugamorph[tugatagger]   # POS tagger (spaCy / Brill / heuristic)
 ```
 
 ## Quick start
@@ -159,7 +159,7 @@ config = AnalysisConfig(
     use_pos_tagger=True,    # use tugatagger if installed
     tagger_engine="auto",   # "auto", "spacy", "brill", "lexicon", "dummy"
     pos_disambiguate=True,  # use POS to break verbal vs suffix ties
-    use_syllabifier=True,   # use silabificador if installed
+    use_syllabifier=True,   # use silabificador for syllabification
 )
 
 analyzer = PortugueseMorphAnalyzer(config)
@@ -167,7 +167,7 @@ analyzer = PortugueseMorphAnalyzer(config)
 
 ## Phonological features
 
-Estimated from orthography (accurate syllabification when silabificador is installed):
+Estimated from orthography, with syllabification from silabificador:
 
 | Feature | Example |
 |---|---|
@@ -219,7 +219,7 @@ This is a rule-based heuristic analyzer, not a statistical model.
 
 - **Ambiguity is not modeled.** The analyzer returns a single best parse. Words like "canto" (noun "corner" vs. verb "I sing") match whichever pattern fires first without sentence context.
 - **The prefix blocklist is manually curated.** Uncommon words may get false prefix splits. Extend `_prefix_block_stems` as needed.
-- **Syllable count is estimated** from orthography. Some hiatus vs. diphthong distinctions need phonological knowledge beyond spelling, though installing silabificador reduces this.
+- **Syllable count is estimated** from orthography. Some hiatus vs. diphthong distinctions need phonological knowledge beyond spelling; silabificador reduces this but does not remove it.
 - **Lemmatization is a best-effort guess, not a full lemmatizer.** `lemmatize()` returns the infinitive for recognized verbs and the derivational root for suffixed words, falling back to the input word when it cannot guess.
 - **European Portuguese focus.** The suffix, prefix, and verbal tables reflect EP norms. The endings table covers Brazilian Portuguese verbal forms, but it does not annotate BP-specific morphological patterns separately.
 
