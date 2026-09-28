@@ -6,6 +6,7 @@
 
 **Merged pull requests:**
 
+- ci: repair the build-tests caller and the package metadata [\#6](https://github.com/TigreGotico/tugamorph/pull/6) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
 - docs: rewrite README in Simplified Technical English [\#4](https://github.com/TigreGotico/tugamorph/pull/4) ([JarbasAl](https://github.com/JarbasAl))
 
 ## [0.0.2a1](https://github.com/TigreGotico/tugamorph/tree/0.0.2a1) (2026-05-29)
