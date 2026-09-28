@@ -19,6 +19,7 @@ dependencies = []
 [project.optional-dependencies]
 silabificador = ["pt-silabificador"]
 tugatagger = ["tugatagger"]
+tugalex = ["tugalex"]
 
 [project.urls]
 Homepage = "https://github.com/TigreGotico/tugamorph"
