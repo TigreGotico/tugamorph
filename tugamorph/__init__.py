@@ -767,6 +767,77 @@ IRREGULAR_STEMS: Dict[str, Tuple[str, str]] = {
     'caib': ('caber', 'subj_pres'),
 }
 
+# Which remainders each irregular stem accepts.
+# The stem alone is not evidence: "vi" opens "viu" and "vida" alike, and
+# before this table every word that began with a stem and was short enough was
+# read as that verb ("abreviado" as ver, "soma" as ser, "inveja" as ver). A
+# stem fires only when what follows it is an ending of that verb's paradigm.
+_PERS_SUBJ = frozenset({'o', 'a', 'as', 'amos', 'ais', 'am'})
+_SUBJ = frozenset({'a', 'as', 'amos', 'ais', 'am'})
+# The "-e" preterite family: fiz/disse/pude/soube and the stems that inflect
+# like them, with the imperfect subjunctive and the future subjunctive.
+_PRET_E = frozenset({
+    'e', 'este', 'emos', 'estes', 'eram',
+    'esse', 'esses', 'essem', 'éssemos',
+    'er', 'eres', 'ermos', 'erem',
+    'era', 'eras', 'éramos',
+})
+# The same family for a stem whose 1sg is the bare stem (fiz, quis, pus).
+_PRET_BARE = _PRET_E | frozenset({''})
+# "-rei/-ria" futures built on a contracted stem: farei, direi, trarei.
+_FUT_CONTRACTED = frozenset({
+    'ei', 'ás', 'á', 'emos', 'eis', 'ão',
+    'ia', 'ias', 'íamos', 'íeis', 'iam',
+})
+
+IRREGULAR_STEM_ENDINGS: Dict[str, frozenset] = {
+    'fo': frozenset({'ste', 'i', 'mos', 'stes', 'ram', 'sse', 'sses', 'ssem',
+                     'r', 'res', 'rmos', 'rem', 'ra', 'ras'}),
+    'fu': frozenset({'i'}),
+    'sej': _SUBJ,
+    'sou': frozenset({''}),
+    'som': frozenset({'os'}),
+    'era': frozenset({'', 's', 'm', 'is'}),
+    'estiv': _PRET_E,
+    'estej': _SUBJ,
+    'tiv': _PRET_E,
+    'tenh': _PERS_SUBJ,
+    'houv': _PRET_E,
+    'haj': _SUBJ,
+    'fiz': _PRET_BARE,
+    'faç': _PERS_SUBJ,
+    'far': _FUT_CONTRACTED,
+    'diss': _PRET_E,
+    'dig': _PERS_SUBJ,
+    'dir': _FUT_CONTRACTED,
+    'troux': _PRET_E,
+    'trag': _PERS_SUBJ,
+    'trar': _FUT_CONTRACTED,
+    'pud': _PRET_E,
+    'poss': _PERS_SUBJ,
+    'quis': _PRET_BARE,
+    'queir': _SUBJ,
+    'soub': _PRET_E,
+    'saib': _SUBJ,
+    'pus': _PRET_BARE,
+    'ponh': _PERS_SUBJ,
+    'vie': frozenset({'ste', 'mos', 'stes', 'ram', 'sse', 'sses', 'ssem',
+                      'r', 'res', 'rmos', 'rem', 'ra', 'ras'}),
+    'venh': _PERS_SUBJ,
+    'vi': frozenset({'', 'm', 'ste', 'u', 'mos', 'stes', 'ram',
+                     'sse', 'sses', 'ssem', 'r', 'res', 'rmos', 'rem',
+                     'ra', 'ras'}),
+    'vej': _PERS_SUBJ,
+    'de': frozenset({'i', 'u', 'mos', 'ram', 'ste', 'stes', 's', 'em',
+                     'sse', 'sses', 'ssem', 'r', 'res', 'rmos', 'rem'}),
+    'dê': frozenset({'', 's', 'em'}),
+    'vou': frozenset({''}),
+    'vai': frozenset({'', 's'}),
+    'vã': frozenset({'o', 's'}),
+    'coub': _PRET_E,
+    'caib': _SUBJ,
+}
+
 # Portuguese digraphs
 DIGRAPHS = {'ch', 'lh', 'nh', 'rr', 'ss', 'qu', 'gu'}
 
@@ -1394,6 +1465,11 @@ class PortugueseMorphAnalyzer:
         # Try longest stems first
         for stem in sorted(self._irregulars.keys(), key=lambda x: -len(x)):
             if word.startswith(stem) and len(word) <= len(stem) + 6:
+                # The stem must be followed by an ending of its own paradigm.
+                # A stem with no ending set recorded never fires, because an
+                # unchecked stem match is what produced "soma" as ser.
+                if word[len(stem):] not in IRREGULAR_STEM_ENDINGS.get(stem, frozenset()):
+                    continue
                 lemma, tense_ctx = self._irregulars[stem]
                 if result.verbal is None:
                     result.verbal = VerbalAnalysis()
