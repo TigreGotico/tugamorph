@@ -38,6 +38,8 @@ from typing import Dict, List, Optional, Tuple, Any, Set
 
 from silabificador import syllabify
 
+from tugamorph._ido_infinitives import ATTESTED_INFINITIVES
+
 # ─── Optional integration imports (graceful fallback) ───
 
 _HAS_TAGGER = False
@@ -539,6 +541,10 @@ CLITIC_TABLE: Dict[str, Tuple[int, str, str]] = {
     'las': (3, 'pl', 'acc'),
 }
 
+# Participle endings shared by the 2nd (-er) and the 3rd (-ir) conjugation.
+# The conjugation class of these comes from the stem, never from the ending.
+_ID_PARTICIPLES = frozenset({'ido', 'ida', 'idos', 'idas'})
+
 # Verbal inflection patterns: (suffix, tense_mood, person, number, conjugation_class_filter)
 # conjugation_class_filter=0 means any class
 # Ordered longest-first for greedy matching
@@ -1030,6 +1036,18 @@ class PortugueseMorphAnalyzer:
         # If a real tagger is available, use it and enable POS disambiguation.
         # The built-in heuristic is too coarse for reliable disambiguation,
         # so we only use it for labeling (pos_tag field), NOT for tiebreaking.
+        # A tag is trusted for tiebreaking only when the CALLER supplied it.
+        # A caller holds the sentence; this method holds one word. Tagging a
+        # bare word here has no more context than the heuristic below, and it
+        # is wrong on exactly the forms where the two tables collide: with a
+        # tagger installed it calls "cantado" and "aprovado" nominal (both are
+        # participles) and "geometria" verbal (a noun), and the resulting
+        # tiebreak lost the participle to the -ado adjective suffix, the
+        # future to the -ao augmentative and -metria to a verbal -ria. It also
+        # does not answer the same way twice: the tag for "cantado" depends on
+        # how the tagger was reached in the process. So a self-obtained tag
+        # labels the result and nothing else, which is what the heuristic
+        # already did.
         _pos_from_tagger = False
         if pos_tag is not None:
             _pos_from_tagger = True  # caller provided a trusted tag
@@ -1039,7 +1057,6 @@ class PortugueseMorphAnalyzer:
                     tagged = self._tagger.tag(original)
                     if tagged:
                         pos_tag = tagged[0][1]
-                        _pos_from_tagger = True
                 except Exception:
                     pass
             if pos_tag is None:
@@ -1129,8 +1146,10 @@ class PortugueseMorphAnalyzer:
         root = working
         if verb_found and result.verbal and result.verbal.tense_mood != 'none':
             # Remove the matched ending from working to get root
+            _ending = ''
             for ending, tm, per, num, conj in self._verbal:
                 if working.endswith(ending):
+                    _ending = ending
                     root = working[:-len(ending)]
                     # Thematic vowel extraction: only strip the final vowel when it matches the
                     # expected thematic vowel for the known conjugation class, or when the
@@ -1167,11 +1186,30 @@ class PortugueseMorphAnalyzer:
                 if _tv:
                     _inf_sfx = {'a': 'ar', 'e': 'er', 'i': 'ir'}.get(_tv, '')
                     if _inf_sfx:
-                        _stem_lemma = root + _inf_sfx
+                        _stem = root
                         # Prepend any stripped prefixes so the lemma is the full inflected form
                         if result.prefixes:
-                            _stem_lemma = ''.join(p[0] for p in result.prefixes) + _stem_lemma
-                        result.verbal.lemma_guess = _stem_lemma
+                            _stem = ''.join(p[0] for p in result.prefixes) + _stem
+                        if _ending in _ID_PARTICIPLES:
+                            # "-ido/-ida/-idos/-idas" is shared by the 2nd (-er) and the
+                            # 3rd (-ir) conjugation: "comida" is from "comer", "partida"
+                            # from "partir". The ending alone cannot say which, so the
+                            # class comes from the stem. Emit a lemma only when exactly
+                            # one of the two candidates is an attested infinitive;
+                            # otherwise leave the lemma unset rather than invent a word.
+                            _cand = {
+                                2: _stem + 'er',
+                                3: _stem + 'ir',
+                            }
+                            _hits = [c for c, w in _cand.items()
+                                     if w in ATTESTED_INFINITIVES]
+                            if len(_hits) == 1:
+                                result.verbal.conjugation_class = _hits[0]
+                                result.verbal.lemma_guess = _cand[_hits[0]]
+                            else:
+                                result.verbal.conjugation_class = None
+                        else:
+                            result.verbal.lemma_guess = _stem + _inf_sfx
         elif irr_found:
             result.morphemes.append(
                 Morpheme(working, MorphemeType.ROOT, label=f'irregular:{result.verbal.lemma_guess}'))
